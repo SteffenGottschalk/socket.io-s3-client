@@ -1,5 +1,5 @@
 "use strict";
-(function() {
+(function () {
 
 	var instanceId = 0;
 	function getInstanceId() {
@@ -21,36 +21,36 @@
 			size: file.size,
 			chunkSize: chunkSize,
 			sent: 0
-		};		
+		};
 
 		uploadTo && (fileInfo.uploadTo = uploadTo);
 
 		// read file
 		var fileReader = new FileReader();
-		fileReader.onloadend = function() {
+		fileReader.onloadend = function () {
 			var buffer = fileReader.result;
 
 			// check file mime type if exists
-			if(self.accepts && self.accepts.length > 0) {
+			if (self.accepts && self.accepts.length > 0) {
 				var found = false;
 
-				for(var i = 0; i < self.accepts.length; i++) {
+				for (var i = 0; i < self.accepts.length; i++) {
 					var accept = self.accepts[i];
 
-					if(file.type === accept) {
+					if (file.type === accept) {
 						found = true;
 						break;
 					}
 				}
 
-				if(!found) {
+				if (!found) {
 					return self.emit('error', new Error('Not Acceptable file type ' + file.type + ' of ' + file.name + '. Type must be one of these: ' + self.accepts.join(', ')));
 				}
 			}
 
 			// check file size
-			if(self.maxFileSize && self.maxFileSize > 0) {
-				if(file.size > +self.maxFileSize) {
+			if (self.maxFileSize && self.maxFileSize > 0) {
+				if (file.size > +self.maxFileSize) {
 					return self.emit('error', new Error('Max Uploading File size must be under ' + self.maxFileSize + ' byte(s).'));
 				}
 			}
@@ -59,59 +59,59 @@
 			self.uploadingFiles[uploadId] = fileInfo;
 
 			// request the server to make a file
-			self.emit('start', { 
-				name: fileInfo.name, 
+			self.emit('start', {
+				name: fileInfo.name,
 				size: fileInfo.size,
-				uploadTo: uploadTo 
+				uploadTo: uploadTo
 			});
-			socket.emit('socket.io-s3-client::createFile', fileInfo);
+			socket.emit('socket.io-s3::createFile', fileInfo);
 
 			function sendChunk() {
-				if(fileInfo.aborted) {
+				if (fileInfo.aborted) {
 					return;
 				}
 
-				if(fileInfo.sent >= buffer.byteLength) {
-					socket.emit('socket.io-s3-client::done::' + uploadId);
+				if (fileInfo.sent >= buffer.byteLength) {
+					socket.emit('socket.io-s3::done::' + uploadId);
 					return;
 				}
 
 				var chunk = buffer.slice(fileInfo.sent, fileInfo.sent + chunkSize);
 
-				self.emit('stream', { 
-					name: fileInfo.name, 
-					size: fileInfo.size, 
+				self.emit('stream', {
+					name: fileInfo.name,
+					size: fileInfo.size,
 					sent: fileInfo.sent,
-					uploadTo: uploadTo 
+					uploadTo: uploadTo
 				});
-				socket.once('socket.io-s3-client::request::' + uploadId, sendChunk);
-				socket.emit('socket.io-s3-client::stream::' + uploadId, chunk);
+				socket.once('socket.io-s3::request::' + uploadId, sendChunk);
+				socket.emit('socket.io-s3::stream::' + uploadId, chunk);
 
 				fileInfo.sent += chunk.byteLength;
 				self.uploadingFiles[uploadId] = fileInfo;
 			}
-			socket.once('socket.io-s3-client::request::' + uploadId, sendChunk);
-			socket.on('socket.io-s3-client::complete::' + uploadId, function(info) {
+			socket.once('socket.io-s3::request::' + uploadId, sendChunk);
+			socket.on('socket.io-s3::complete::' + uploadId, function (info) {
 				self.emit('complete', info);
-				
-				socket.removeAllListeners('socket.io-s3-client::abort::' + uploadId);
-				socket.removeAllListeners('socket.io-s3-client::error::' + uploadId);
-				socket.removeAllListeners('socket.io-s3-client::complete::' + uploadId);
+
+				socket.removeAllListeners('socket.io-s3::abort::' + uploadId);
+				socket.removeAllListeners('socket.io-s3::error::' + uploadId);
+				socket.removeAllListeners('socket.io-s3::complete::' + uploadId);
 
 				// remove from uploadingFiles list
 				delete self.uploadingFiles[uploadId];
 			});
-			socket.on('socket.io-s3-client::abort::' + uploadId, function(info) {
+			socket.on('socket.io-s3::abort::' + uploadId, function (info) {
 				fileInfo.aborted = true;
-				self.emit('abort', { 
-					name: fileInfo.name, 
-					size: fileInfo.size, 
-					sent: fileInfo.sent, 
+				self.emit('abort', {
+					name: fileInfo.name,
+					size: fileInfo.size,
+					sent: fileInfo.sent,
 					wrote: info.wrote,
-					uploadTo: uploadTo 
+					uploadTo: uploadTo
 				});
 			});
-			socket.on('socket.io-s3-client::error::' + uploadId, function(err) {
+			socket.on('socket.io-s3::error::' + uploadId, function (err) {
 				self.emit('error', new Error(err.message));
 			});
 		};
@@ -119,7 +119,7 @@
 	}
 
 	function SocketIOS3Client(socket, options) {
-		if(!socket) {
+		if (!socket) {
 			return this.emit('error', new Error('SocketIOFile requires Socket.'));
 		}
 
@@ -134,7 +134,7 @@
 
 		var self = this;
 
-		socket.once('socket.io-s3-client::recvSync', function(settings) {
+		socket.once('socket.io-s3::recvSync', function (settings) {
 			self.maxFileSize = settings.maxFileSize || undefined;
 			self.accepts = settings.accepts || [];
 			self.chunkSize = settings.chunkSize || 10240;
@@ -142,13 +142,17 @@
 
 			self.emit('ready');
 		});
-		socket.emit('socket.io-s3-client::reqSync');
+		socket.emit('socket.io-s3::reqSync');
 	}
-	SocketIOS3Client.prototype.getUploadId = function() {
+	SocketIOS3Client.prototype.getUploadId = function () {
 		return 'u_' + this.uploadId++;
 	}
-	SocketIOS3Client.prototype.upload = function(fileEl, options) {
-		if(!fileEl ||
+
+
+
+
+	SocketIOS3Client.prototype.upload = function (fileEl, options) {
+		if (!fileEl ||
 			(fileEl.files && fileEl.files.length <= 0) ||
 			fileEl.length <= 0
 		) {
@@ -162,7 +166,9 @@
 		var files = fileEl.files ? fileEl.files : fileEl;
 		var loaded = 0;
 
-		for(var i = 0; i < files.length; i++) {
+		for (var i = 0; i < files.length; i++) {
+			/* max parallel uploads */
+
 			var file = files[i];
 			var uploadId = this.getUploadId();
 			uploadIds.push(uploadId);
@@ -171,31 +177,31 @@
 
 			_upload.call(self, file, options);
 		}
-		
+
 		return uploadIds;
 	};
-	SocketIOS3Client.prototype.on = function(evName, fn) {
-		if(!this.ev[evName]) {
+	SocketIOS3Client.prototype.on = function (evName, fn) {
+		if (!this.ev[evName]) {
 			this.ev[evName] = [];
 		}
 
 		this.ev[evName].push(fn);
 		return this;
 	};
-	SocketIOS3Client.prototype.off = function(evName, fn) {
-		if(typeof evName === 'undefined') {
+	SocketIOS3Client.prototype.off = function (evName, fn) {
+		if (typeof evName === 'undefined') {
 			this.ev = [];
 		}
-		else if(typeof fn === 'undefined') {
-			if(this.ev[evName]) {
-				delete this.ev[evName]; 
+		else if (typeof fn === 'undefined') {
+			if (this.ev[evName]) {
+				delete this.ev[evName];
 			}
 		}
 		else {
 			var evList = this.ev[evName] || [];
 
-			for(var i = 0; i < evList.length; i++) {
-				if(evList[i] === fn) {
+			for (var i = 0; i < evList.length; i++) {
+				if (evList[i] === fn) {
 					evList = evList.splice(i, 1);
 					break;
 				}
@@ -204,23 +210,23 @@
 
 		return this;
 	};
-	SocketIOS3Client.prototype.emit = function(evName, args) {
+	SocketIOS3Client.prototype.emit = function (evName, args) {
 		var evList = this.ev[evName] || [];
 
-		for(var i = 0; i < evList.length; i++) {
+		for (var i = 0; i < evList.length; i++) {
 			evList[i](args);
 		}
 
 		return this;
 	};
-	SocketIOS3Client.prototype.abort = function(id) {
+	SocketIOS3Client.prototype.abort = function (id) {
 		var socket = this.socket;
-		socket.emit('socket.io-s3-client::abort::' + id);
+		socket.emit('socket.io-s3::abort::' + id);
 	};
-	SocketIOS3Client.prototype.destroy = function() {
+	SocketIOS3Client.prototype.destroy = function () {
 		var uploadingFiles = this.uploadingFiles;
 
-		for(var key in uploadingFiles) {
+		for (var key in uploadingFiles) {
 			this.abort(key);
 		}
 
@@ -228,7 +234,7 @@
 		this.uploadingFiles = null;
 		this.ev = null;
 	};
-	SocketIOS3Client.prototype.getUploadInfo = function() {
+	SocketIOS3Client.prototype.getUploadInfo = function () {
 		return JSON.parse(JSON.stringify(this.uploadingFiles));
 	};
 
