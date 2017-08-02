@@ -64,7 +64,7 @@
 				size: fileInfo.size,
 				uploadTo: uploadTo 
 			});
-			socket.emit('socket.io-file::createFile', fileInfo);
+			socket.emit('socket.io-s3-client::createFile', fileInfo);
 
 			function sendChunk() {
 				if(fileInfo.aborted) {
@@ -72,7 +72,7 @@
 				}
 
 				if(fileInfo.sent >= buffer.byteLength) {
-					socket.emit('socket.io-file::done::' + uploadId);
+					socket.emit('socket.io-s3-client::done::' + uploadId);
 					return;
 				}
 
@@ -84,24 +84,24 @@
 					sent: fileInfo.sent,
 					uploadTo: uploadTo 
 				});
-				socket.once('socket.io-file::request::' + uploadId, sendChunk);
-				socket.emit('socket.io-file::stream::' + uploadId, chunk);
+				socket.once('socket.io-s3-client::request::' + uploadId, sendChunk);
+				socket.emit('socket.io-s3-client::stream::' + uploadId, chunk);
 
 				fileInfo.sent += chunk.byteLength;
 				self.uploadingFiles[uploadId] = fileInfo;
 			}
-			socket.once('socket.io-file::request::' + uploadId, sendChunk);
-			socket.on('socket.io-file::complete::' + uploadId, function(info) {
+			socket.once('socket.io-s3-client::request::' + uploadId, sendChunk);
+			socket.on('socket.io-s3-client::complete::' + uploadId, function(info) {
 				self.emit('complete', info);
 				
-				socket.removeAllListeners('socket.io-file::abort::' + uploadId);
-				socket.removeAllListeners('socket.io-file::error::' + uploadId);
-				socket.removeAllListeners('socket.io-file::complete::' + uploadId);
+				socket.removeAllListeners('socket.io-s3-client::abort::' + uploadId);
+				socket.removeAllListeners('socket.io-s3-client::error::' + uploadId);
+				socket.removeAllListeners('socket.io-s3-client::complete::' + uploadId);
 
 				// remove from uploadingFiles list
 				delete self.uploadingFiles[uploadId];
 			});
-			socket.on('socket.io-file::abort::' + uploadId, function(info) {
+			socket.on('socket.io-s3-client::abort::' + uploadId, function(info) {
 				fileInfo.aborted = true;
 				self.emit('abort', { 
 					name: fileInfo.name, 
@@ -111,7 +111,7 @@
 					uploadTo: uploadTo 
 				});
 			});
-			socket.on('socket.io-file::error::' + uploadId, function(err) {
+			socket.on('socket.io-s3-client::error::' + uploadId, function(err) {
 				self.emit('error', new Error(err.message));
 			});
 		};
@@ -134,7 +134,7 @@
 
 		var self = this;
 
-		socket.once('socket.io-file::recvSync', function(settings) {
+		socket.once('socket.io-s3-client::recvSync', function(settings) {
 			self.maxFileSize = settings.maxFileSize || undefined;
 			self.accepts = settings.accepts || [];
 			self.chunkSize = settings.chunkSize || 10240;
@@ -142,7 +142,7 @@
 
 			self.emit('ready');
 		});
-		socket.emit('socket.io-file::reqSync');
+		socket.emit('socket.io-s3-client::reqSync');
 	}
 	SocketIOS3Client.prototype.getUploadId = function() {
 		return 'u_' + this.uploadId++;
@@ -215,7 +215,7 @@
 	};
 	SocketIOS3Client.prototype.abort = function(id) {
 		var socket = this.socket;
-		socket.emit('socket.io-file::abort::' + id);
+		socket.emit('socket.io-s3-client::abort::' + id);
 	};
 	SocketIOS3Client.prototype.destroy = function() {
 		var uploadingFiles = this.uploadingFiles;
